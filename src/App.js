@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./index.css";
 
 const surahNames = [
@@ -130,49 +130,91 @@ function Header() {
 function App() {
   const [guess1, setGuess1] = useState("");
   const [guess2, setGuess2] = useState("");
-  const [guess3, setGuess3] = useState("");
   const [surahName, setSurahName] = useState("");
   const [page, setPage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [result, setResult] = useState(null);
 
-  const randomNumber = Math.floor(Math.random() * 604) + 1;
+  const randomNumber = useRef(Math.floor(Math.random() * 604) + 1);
+  const randomNumber2 = useRef(Math.floor(Math.random() * (10 - 1 + 1)) + 1);
+
+  const isitEven = isEven(randomNumber2.current);
+  const isitOdd = isOdd(randomNumber2.current);
 
   useEffect(() => {
-    const url = `http://api.alquran.cloud/v1/page/${randomNumber}/quran-uthmani`;
-
-    const fetchData = async () => {
-      try {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(
-            `Network response was not ok: ${response.statusText}`
-          );
-        }
-        const result = await response.json();
-        setPage(result.data.ayahs);
-        setSurahName(result.data.ayahs[0].surah.englishName);
-      } catch (error) {
-        setError(`Fetch error: ${error.message}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, []);
 
-  function checkGuess(value) {
+  const fetchData = async () => {
+    const url = `http://api.alquran.cloud/v1/page/${randomNumber.current}/quran-uthmani`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Network response was not ok: ${response.statusText}`);
+      }
+      const result = await response.json();
+      setPage(result.data.ayahs);
+      setSurahName(result.data.ayahs[0].surah.englishName);
+      setLoading(false);
+    } catch (error) {
+      setError(`Fetch error: ${error.message}`);
+      setLoading(false);
+    }
+  };
+
+  const resetGame = () => {
+    setResult(null);
+    setGuess1("");
+    setGuess2("");
+    setLoading(true);
+    setError(null);
+    randomNumber.current = Math.floor(Math.random() * 604) + 1;
+    randomNumber2.current = Math.floor(Math.random() * (10 - 1 + 1)) + 1;
+    console.log(guess1, guess2);
+    fetchData();
+  };
+
+  function isEven(number) {
+    return number % 2 === 0;
+  }
+
+  function isOdd(number) {
+    return number % 2 !== 0;
+  }
+
+  function checkGuess(value, buttonNumber) {
     if (value === surahName) {
-      console.log(value, "is correct");
-      setGuess1("correct");
-      setGuess2("incorrect");
-      setGuess3("incorrect");
+      setResult("Correct!");
+      if (buttonNumber === 1) {
+        setGuess1("correct");
+        setGuess2("incorrect");
+      } else if (buttonNumber === 2) {
+        setGuess1("incorrect");
+        setGuess2("correct");
+      }
+    } else {
+      setResult("Incorrect!");
+      if (buttonNumber === 1) {
+        setGuess1("incorrect");
+        setGuess2("correct");
+      } else if (buttonNumber === 2) {
+        setGuess1("correct");
+        setGuess2("incorrect");
+      }
     }
   }
 
+  const otherSN = useRef(
+    surahNames[Math.floor(Math.random() * surahNames.length)]
+  );
+
+  const guessValue1 = isitEven ? surahName : otherSN.current;
+  const guessValue2 = isitOdd ? surahName : otherSN.current;
+
   return (
-    <div>
+    <div className="container">
       <Header />
       {loading && <p>Loading...</p>}
       {error && <p>Error: {error}</p>}
@@ -181,19 +223,25 @@ function App() {
           return <li key={index}>{ayah.text}</li>;
         })}
       <h3>Which surah is this?</h3>
-      <button
-        className={guess1}
-        value={surahName}
-        onClick={(e) => checkGuess(e.target.value)}
-      >
-        {surahName}
-      </button>
-      <button className={guess2}>
-        {surahNames[Math.floor(Math.random() * surahNames.length)]}
-      </button>
-      <button className={guess3}>
-        {surahNames[Math.floor(Math.random() * surahNames.length)]}
-      </button>
+
+      <div className="button-container">
+        <button
+          className={guess1}
+          value={guessValue1}
+          onClick={(e) => checkGuess(e.target.value, 1)}
+        >
+          {guessValue1}
+        </button>
+        <button
+          className={guess2}
+          value={guessValue2}
+          onClick={(e) => checkGuess(e.target.value, 2)}
+        >
+          {guessValue2}
+        </button>
+        <button onClick={resetGame}>Refresh</button>
+      </div>
+      {result && <p>{result}</p>}
     </div>
   );
 }
